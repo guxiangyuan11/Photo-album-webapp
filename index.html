@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<title>demo</title>
+		<script src="http://g.tbcdn.cn/mtb/lib-flexible/0.3.4/??flexible_css.js,flexible.js"></script>
+		<link rel="stylesheet" type="text/css" href="css/demo02.css"/>
+	     <script src="js/transform.js"></script>
+	     <script type="text/javascript">
+	     	var dataUrl=[];
+	        for (var i=0;i<100;i++) {
+	        	dataUrl.push('img/'+(i%16+1)+'.jpg');
+	        }
+
+	        window.onload=function() {
+	        	var wrap=document.querySelector('.wrap');
+	        	var childer = wrap.children[0];
+	        	var pics = document.querySelector('.pics');
+	        	var footer = document.querySelector('footer');
+	        	var lis = document.getElementsByTagName('li');
+	        	var canvas = document.querySelector('#canvas');
+	        	var clos = document.querySelector('#clos');
+	        	var bigImg = document.querySelector("#bigImg");
+	        	var length = 12;
+	        	var start = 0;
+	        	var minTop=wrap.getBoundingClientRect().top;
+	        	var maxTop=wrap.getBoundingClientRect().height + minTop;
+	        	// 当前屏幕wrap的高和ul的高度的差值
+	        	var maxScroll = wrap.clientHeight-childer.offsetHeight;
+	        	var isLoad = false;
+	        	var footerH = footer.offsetHeight;
+	        	var canvasTx = canvas.getContext('2d');
+	        	gesCanvas();
+	        		function gesCanvas(){
+						cssTransform(canvas,"translateZ",0.01);
+						var startS = 0;
+						var startR = 0;
+						var callBack = {
+							start:function(e) {
+								startS = cssTransform(this,"scale");
+								startR = cssTransform(this,"rotate");
+							},
+							change:function(e) {
+								var disS = e.scale;
+								var disR = e.rotation;
+								cssTransform(this,"scale",startS*disS);
+								cssTransform(this,"rotate",startR+disR);
+							}
+						}
+						gesture(canvas,callBack);	
+					}
+	        	cssTransform(footer,'scale',0);
+	        	ceate();
+	        	cssTransform(childer,"translateZ",0.01);
+	        	clos.addEventListener('touchend',function(){
+	        		cssTransform(bigImg,"scale",0);
+	        	});
+	        	mscroll(wrap,{
+	        		in: function(){
+	        			createImg();
+	        			// 得到ul向上移动的距离
+	        			var scrollTop = cssTransform(childer,'translateY');
+	        			if(isLoad){
+	        				var over = maxScroll-scrollTop;
+	        		        // 系数
+	        		        var scale = over/footerH;
+	        		        scale = scale>1?1:scale;
+	        		        scale = scale<0?0:scale;
+	        		        cssTransform(footer,"scale",scale);
+	        			}
+	        		},
+	        		start: function() {
+	        			var scrollTop = cssTransform(childer,'translateY')
+	        			maxScroll = wrap.clientHeight-childer.offsetHeight;
+	        			if(scrollTop<=maxScroll){
+	        				isLoad = true;
+	        			}
+	        		},
+	        		end: function() {
+	        			var scrollTop = cssTransform(childer,'translateY');
+	        			if(isLoad&&maxScroll-scrollTop>=footerH){
+	        				clearInterval(childer.scroll);
+	        				start+=length;
+	        				ceate();
+	        			}
+	        			isLoad = false;
+	        		}
+	        	});
+	        	// 这里把图片路径存储到src属性上
+	        	function ceate() {
+	        		if(start>=dataUrl.length) {
+	        			footer.innerHTML='没有新图了';
+	        			setTimeout(function(){
+	        				childer.style.transition=".3s";
+	        				cssTransform(childer,"translateY",maxScroll);
+	        			},2000);
+	        			return;
+	        		}
+	        		var end = start+length;
+	        		end=end>dataUrl.length?dataUrl.length:end;
+	        		for(var i=start;i<end;i++){
+	        			var li = document.createElement('li');
+	        			li.src=dataUrl[i];
+	        			li.isLoad = false;
+	        			li.addEventListener('touchstart',function(){
+	        				this.isMove = false;
+	        			});
+	        			li.addEventListener('touchmove',function(){
+	        				this.isMove = true;
+	        			});
+	        			li.addEventListener('touchend',function(){
+	        				if(this.isMove){
+	        					return;
+	        				}
+	        			var left = this.getBoundingClientRect().left;
+						var top = this.getBoundingClientRect().top;
+						var img = new Image();
+						img.src = this.src;
+						img.onload = function() {
+							canvas.width = img.width;
+							canvas.height = img.height;
+							canvasTx.drawImage(img,0,0,canvas.width,canvas.height);
+							bigImg.style.WebkitTransformOrigin = bigImg.style.transformOrigin = left+"px "+top+"px";
+							bigImg.style.opacity = 1;
+							cssTransform(bigImg,"scale",1);
+						};
+	        			},false);
+	        			pics.appendChild(li);
+	        		}
+	        		createImg();
+	        	}
+	        	// 这里拿到在当前视野中的li标签
+	        	function createImg() {
+	        		for(var i=0;i<lis.length;i++){
+	        			var top = lis[i].getBoundingClientRect().top;
+	        			if(!lis[i].isLoad&&top>=minTop && top<maxTop){
+	        				lis[i].isLoad=true;
+	        				showImg(lis[i]);
+	        			}
+	        		}
+	        	}
+	        	// 创建图片并放到li标签里面去
+	        	function showImg(li){
+	        		var img = new Image();
+	        		img.src = li.src;
+	        		img.onload=function() {
+	        			var c = document.createElement('canvas');
+	        			var ctx = c.getContext("2d");
+	        			c.width = img.width;
+	        			c.height = img.height;
+	        			ctx.drawImage(img,0,0,c.width ,c.height);
+	        			li.appendChild(c);
+	        			// transition 在没有渲染完毕的时候，是无效的，所以设置一个定时器
+	        		    setTimeout(function() {
+	        		    	c.style.opacity=1;
+	        		    },50)
+	        		}
+	        	}
+	        }
+	     </script>
+	</head>
+	<body>
+		<header>相册</header>
+		<section class="wrap">
+			<div class="scroll">
+				<ul class="pics">
+				</ul>
+				<footer>加载更多</footer>
+			</div>
+		</section>
+			<section id="bigImg">
+				<header>大图预览<a href="javascript:;" id="clos">关闭</a></header>
+				<canvas id="canvas" ></canvas>
+			</section>
+	</body>
+</html>
